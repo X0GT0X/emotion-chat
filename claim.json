@@ -1,0 +1,4 @@
+{
+  "sub":"mailto:webpush@localhost:3000",
+  "aud":"http://localhost:3000",
+}
