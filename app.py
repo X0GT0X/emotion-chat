@@ -4,11 +4,15 @@ from flask_restful import Api
 from flask_bcrypt import Bcrypt
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
+
 from database.db import initialize_db
+from database.models import User, OnlineUser, Chat, Message, Group, Invitation
+
 from resources.routes import initialize_routes
 from resources.errors import errors
-from database.models import User, OnlineUser, Chat, Message, Group, Invitation
 from resources.errors import InternalServerError
+
+from ai.Model import Model
 from time import time
 
 
@@ -24,8 +28,8 @@ app.host = '0.0.0.0'
 app.config['SECRET_KEY'] = 'mysecret'
 app.config['JWT_SECRET_KEY'] = '73fbefb128dc0d0523ab794b508d81e8'
 app.config['MONGODB_SETTINGS'] = {
-    # 'host': 'mongodb://localhost/chat-app',
-    'host': 'mongodb+srv://emotion-app:DMyKD8xCEUfSFYHC@cluster-rqa9o.gcp.mongodb.net/chat-app?retryWrites=true&w=majority'
+    'host': 'mongodb://localhost/chat-app',
+    # 'host': 'mongodb+srv://emotion-app:DMyKD8xCEUfSFYHC@cluster-rqa9o.gcp.mongodb.net/chat-app?retryWrites=true&w=majority'
 }
 app.config['UPLOAD_FOLDER'] = '/files/profile_images'
 
@@ -35,6 +39,8 @@ initialize_routes(api)
 socketIO = SocketIO(app, cors_allowed_origins="*")
 CORS(app)
 
+model = Model()
+
 
 @socketIO.on("send_message")
 def handle_message(data):
@@ -42,14 +48,20 @@ def handle_message(data):
 
         timestamp = str(time()*1000)
         users_login = []
+
+        prediction = model.predict(data['message'])
+        emotion = model.get_emotion(prediction)
+        print(emotion)
+
         if data['type'] == 'chat':
             chat = Chat.objects.get(chat_id=data['chat'])
             sender = User.objects.get(login=data['sender'])
+
             message_body = {
                 'sender': sender,
                 'message': data['message'],
                 'chat': chat,
-                'emotion': '',
+                'emotion': emotion,
                 'timestamp': timestamp
             }
 
@@ -67,7 +79,7 @@ def handle_message(data):
             message_body = {
                 'sender': sender,
                 'message': data['message'],
-                'emotion': '',
+                'emotion': emotion,
                 'timestamp': timestamp
             }
 
